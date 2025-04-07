@@ -8,6 +8,9 @@ import {
   updateDoc,
   getDoc,
   onSnapshot,
+  deleteField,
+  deleteDoc,
+  getDocs
 } from "firebase/firestore";
 import "./Lobby.css";
 
@@ -130,6 +133,70 @@ function Lobby() {
   
     return () => unsubscribe();
   }, [lobbyId]);  
+
+  useEffect(() => {
+    const handleUnload = async () => {
+      if (!lobbyId || !playerName) return;
+  
+      const lobbyRef = doc(db, "lobbies", lobbyId);
+  
+      // Remove the player
+      await updateDoc(lobbyRef, {
+        [`players.${playerName}`]: deleteField(),
+      });
+  
+      // Check if anyone's left
+      const updatedLobby = await getDoc(lobbyRef);
+      if (updatedLobby.exists()) {
+        const data = updatedLobby.data();
+        const players = data.players || {};
+  
+        if (Object.keys(players).length === 0) {
+          // No one left — delete the lobby
+          await deleteDoc(lobbyRef);
+          console.log("Lobby deleted because it was empty.");
+        }
+      }
+    };
+  
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [lobbyId, playerName]);
+  
+  
+  const cleanupEmptyLobbies = async () => {
+    try {
+      const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
+  
+      for (const lobby of lobbiesSnapshot.docs) {
+        const data = lobby.data();
+        const players = data.players || [];
+  
+        if (Array.isArray(players) && players.length === 0) {
+          await deleteDoc(doc(db, "lobbies", lobby.id));
+          console.log(`🧹 Deleted empty lobby: ${lobby.id}`);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error cleaning empty lobbies:", error);
+    }
+  };
+  
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cleanupEmptyLobbies();
+    }, 15 * 60 * 1000); // 15 minutes
+  
+    // Optional: run it once on load
+    cleanupEmptyLobbies();
+  
+    return () => clearInterval(interval); // cleanup if component unmounts
+  }, []);
+
+
+  
+
   
 
   return (
