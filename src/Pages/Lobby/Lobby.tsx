@@ -22,28 +22,17 @@ function Lobby() {
   const playerName = localStorage.getItem("playerName") || "Player";
   const playerImage = localStorage.getItem("profileImage") || "/Base_Profile_Icon.png";
 
-  // Generate a random unique lobby ID
-  const generateLobbyId = () => {
-    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let newLobbyId = "";
-    for (let i = 0; i < 8; i++) {
-      newLobbyId += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return newLobbyId;
-  };
-
   const createLobby = async () => {
     try {
-      const newLobbyId = generateLobbyId();
-      const newLobby = {
-        lobbyId: newLobbyId,
-        players: [{ id: playerName, name: playerName, image: playerImage }],
-      };
+      // Create a new lobby document with auto-generated ID
+      const newLobbyRef = await addDoc(collection(db, "lobbies"), {
+        players: [{ id: playerName, name: playerName, image: playerImage, lastSeen: Date.now() }],
+      });
 
-      await addDoc(collection(db, "lobbies"), newLobby);
+      const newLobbyId = newLobbyRef.id; // Use the Firestore document ID as the lobby ID
       console.log("Lobby created:", newLobbyId);
 
-      setLobbyId(newLobbyId); // ✅ Set lobbyId first, so onSnapshot will listen
+      setLobbyId(newLobbyId); // Set lobbyId so the component listens to updates
     } catch (error) {
       console.error("Error creating lobby:", error);
     }
@@ -57,7 +46,7 @@ function Lobby() {
       const lobbyDoc = await getDoc(lobbyRef);
 
       if (lobbyDoc.exists()) {
-        setLobbyId(inputLobbyId); // ✅ Set lobbyId before updating Firestore
+        setLobbyId(inputLobbyId); // Set lobbyId before updating Firestore
 
         const lobbyData = lobbyDoc.data();
         const existingPlayers = lobbyData.players || [];
@@ -65,8 +54,8 @@ function Lobby() {
         // Check if player already exists
         const isAlreadyInLobby = existingPlayers.some((p: any) => p.id === playerName);
         if (!isAlreadyInLobby) {
-          const updatedPlayers = [...existingPlayers, { id: playerName, name: playerName, image: playerImage }];
-
+          const updatedPlayers = [...existingPlayers, { id: playerName, name: playerName, image: playerImage, lastSeen: Date.now() }];
+          
           await updateDoc(lobbyRef, { players: updatedPlayers });
           console.log("Joined lobby:", inputLobbyId);
         } else {
@@ -99,58 +88,34 @@ function Lobby() {
 
   useEffect(() => {
     if (!lobbyId || !playerName) return;
-  
+
     const interval = setInterval(async () => {
       const playerRef = doc(db, "lobbies", lobbyId);
       await updateDoc(playerRef, {
         [`players.${playerName}.lastSeen`]: Date.now()
       });
-    }, 5000);
-  
+    }, 5000); // Update lastSeen every 5 seconds
+
     return () => clearInterval(interval);
   }, [lobbyId, playerName]);
 
   useEffect(() => {
-    if (!lobbyId) return;
-  
-    const unsubscribe = onSnapshot(doc(db, "lobbies", lobbyId), (docSnap) => {
-      if (docSnap.exists()) {
-        const lobbyData = docSnap.data();
-        const allPlayers = lobbyData.players || {};
-  
-        const now = Date.now();
-        const activePlayers = Object.entries(allPlayers)
-          .filter(([_, p]: any) => now - p.lastSeen < 15000) // 15 sec timeout
-          .map(([id, p]: any) => ({
-            id,
-            name: p.playerName,
-            image: p.playerImage,
-          }));
-  
-        setPlayers(activePlayers);
-      }
-    });
-  
-    return () => unsubscribe();
-  }, [lobbyId]);  
-
-  useEffect(() => {
     const handleUnload = async () => {
       if (!lobbyId || !playerName) return;
-  
+
       const lobbyRef = doc(db, "lobbies", lobbyId);
-  
+
       // Remove the player
       await updateDoc(lobbyRef, {
         [`players.${playerName}`]: deleteField(),
       });
-  
+
       // Check if anyone's left
       const updatedLobby = await getDoc(lobbyRef);
       if (updatedLobby.exists()) {
         const data = updatedLobby.data();
         const players = data.players || {};
-  
+
         if (Object.keys(players).length === 0) {
           // No one left — delete the lobby
           await deleteDoc(lobbyRef);
@@ -158,20 +123,19 @@ function Lobby() {
         }
       }
     };
-  
+
     window.addEventListener("beforeunload", handleUnload);
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [lobbyId, playerName]);
-  
-  
+
   const cleanupEmptyLobbies = async () => {
     try {
       const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
-  
+
       for (const lobby of lobbiesSnapshot.docs) {
         const data = lobby.data();
         const players = data.players || [];
-  
+
         if (Array.isArray(players) && players.length === 0) {
           await deleteDoc(doc(db, "lobbies", lobby.id));
           console.log(`🧹 Deleted empty lobby: ${lobby.id}`);
@@ -181,23 +145,17 @@ function Lobby() {
       console.error("❌ Error cleaning empty lobbies:", error);
     }
   };
-  
 
   useEffect(() => {
     const interval = setInterval(() => {
       cleanupEmptyLobbies();
-    }, 15 * 60 * 1000); // 15 minutes
-  
+    }, 15 * 60 * 1000); // Check for empty lobbies every 15 minutes
+
     // Optional: run it once on load
     cleanupEmptyLobbies();
-  
+
     return () => clearInterval(interval); // cleanup if component unmounts
   }, []);
-
-
-  
-
-  
 
   return (
     <div className="Container">
