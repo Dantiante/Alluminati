@@ -64,7 +64,7 @@ function Questions({ changeBackground }: QuestionsProps) {
 
   // Shuffle and pick 20 unique questions
   const shuffledQuestions = [...NaughtyQuestions].sort(() => 0.5 - Math.random()).slice(0, 20);
-  const [questions, setQuestions] = useState(shuffledQuestions);
+  const [questions, _setQuestions] = useState(shuffledQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null); // Stores who got the answer
   const [personACount, setPersonACount] = useState(0); // Track number of Person A choices
@@ -110,6 +110,8 @@ function Questions({ changeBackground }: QuestionsProps) {
       alert("Game Over! You've answered all the questions.");
     }
   }
+
+  
 
   
 
