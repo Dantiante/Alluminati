@@ -69,22 +69,24 @@ function Lobby() {
     }
   };
 
-  // Listen for lobby updates (Real-time)
   useEffect(() => {
     if (!lobbyId) return;
-
+  
     console.log("Listening for changes in lobby:", lobbyId);
-
+  
     const unsubscribe = onSnapshot(doc(db, "lobbies", lobbyId), (docSnap) => {
       if (docSnap.exists()) {
         const lobbyData = docSnap.data();
         console.log("Lobby updated:", lobbyData);
-        setPlayers(lobbyData.players || []);
+  
+        // Ensure players is always an array before setting the state
+        setPlayers(Array.isArray(lobbyData.players) ? lobbyData.players : []);
       }
     });
-
+  
     return () => unsubscribe();
   }, [lobbyId]);
+  
 
   useEffect(() => {
     if (!lobbyId || !playerName) return;
@@ -163,13 +165,14 @@ function Lobby() {
 
       {/* Display all joined players */}
       <div className="player-list">
-        {players.map((player) => (
-          <div key={player.id} className="player">
-            <img src={player.image} alt={player.name} className="player-image" />
-            <p>{player.name}</p>
-          </div>
-        ))}
-      </div>
+  {Array.isArray(players) && players.map((player) => (
+    <div key={player.id} className="player">
+      <img src={player.image} alt={player.name} className="player-image" />
+      <p>{player.name}</p>
+    </div>
+  ))}
+</div>
+
 
       {/* Show Lobby ID if created */}
       {lobbyId ? (
