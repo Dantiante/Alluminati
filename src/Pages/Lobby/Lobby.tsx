@@ -129,8 +129,7 @@ function Lobby() {
     });
   
     return () => unsubscribe();
-  }, [lobbyId]);
-  
+  }, [lobbyId]);  
   
 
   return (
