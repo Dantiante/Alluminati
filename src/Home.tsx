@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import './Home.css';
 
 function Home() {
+
+  const [showIntro, setShowIntro] = useState(true);
+
+
   const [profileImage, setProfileImage] = useState<string>(() => {
     return localStorage.getItem("/Base_Profile_Icon.png") || "/Base_Profile_Icon.png";
   });
@@ -20,6 +24,7 @@ function Home() {
     };
   }, []);
 
+
   // Function to handle image upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -34,6 +39,25 @@ function Home() {
     setPlayerName(e.target.value);
     localStorage.setItem("playerName", e.target.value); // Save to localStorage
   };
+
+    const handleVideoEnd = () => {
+    setShowIntro(false);
+  };
+
+  if (showIntro) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: 50 }}>
+        <video
+          src="/Intro.mp4"
+          autoPlay
+          muted
+          onEnded={handleVideoEnd}
+          className='intro-video'
+        />
+      </div>
+    );
+  }
+
 
   return (
     <div className='Container'>
