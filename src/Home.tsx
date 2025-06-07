@@ -43,15 +43,41 @@ function Home() {
         <img src={profileImage} alt="Profile Icon" className="profile-img" />
         
         {/* Upload new image */}
-        <input type="file" accept="image/*" onChange={handleImageUpload} />
-        
-        {/* Change player name */}
+          
+        <div>
+          <input
+          type="file"
+          accept="image/*"
+          className="Upload-img"
+          style={{ display: 'none' }}
+          id="profile-image-upload"
+          onChange={handleImageUpload}
+        />
+        <button
+          className="custom-upload-btn"
+          onClick={() => {
+            const input = document.getElementById('profile-image-upload');
+            if (input) (input as HTMLInputElement).click();
+          }}
+        >
+          Upload Image
+        </button>
+        <div>
+                  {/* Change player name */}
+
+        <label htmlFor="player-name" className='name-field'>Name: </label>
+
         <input
           type="text"
+          id="player-name"
           value={playerName}
           onChange={handleNameChange}
           placeholder="Enter your name"
+          className="name-field"
         />
+        </div>
+        </div>
+
       </div>
 
       <div className='Start'>
