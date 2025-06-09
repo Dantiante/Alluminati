@@ -1,0 +1,1 @@
+Fix user disappearing in lobby
