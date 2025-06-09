@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './Home.css';
 
+
 function Home() {
 
   const [showIntro, setShowIntro] = useState(true);
@@ -24,15 +25,70 @@ function Home() {
     };
   }, []);
 
+  const uploadToImgBB = async (file: File) => {
+  const apiKey = "2b53a3358800057b5470efaaef387be4"; // replace this with your actual key
+
+  // Convert file to base64 string
+  const toBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          // Remove the data:image/*;base64, prefix
+          resolve(reader.result.split(",")[1]);
+        } else {
+          reject("Failed to convert file to base64.");
+        }
+      };
+      reader.onerror = error => reject(error);
+    });
+
+  try {
+    const base64Image = await toBase64(file);
+
+    const formData = new FormData();
+    formData.append("key", apiKey);
+    formData.append("image", base64Image);
+
+    const response = await fetch("https://api.imgbb.com/1/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      console.log("ImgBB upload success:", data.data.url);
+      return data.data.url; // This is your uploaded image URL
+    } else {
+      console.error("ImgBB upload failed:", data);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error uploading to ImgBB:", error);
+    return null;
+  }
+};
+
+
 
   // Function to handle image upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const imgUrl = URL.createObjectURL(e.target.files[0]);
-      setProfileImage(imgUrl);
-      localStorage.setItem("profileImage", imgUrl); // Save to localStorage
+const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  if (e.target.files && e.target.files[0]) {
+    const file = e.target.files[0];
+
+    const uploadedImageUrl = await uploadToImgBB(file);
+
+    if (uploadedImageUrl) {
+      setProfileImage(uploadedImageUrl);
+      localStorage.setItem("profileImage", uploadedImageUrl);
     }
-  };
+  }
+};
+
+
+
 
   // Function to handle name change
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {

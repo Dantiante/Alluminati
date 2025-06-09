@@ -8,7 +8,6 @@ import {
   updateDoc,
   getDoc,
   onSnapshot,
-  deleteField,
   deleteDoc,
   getDocs
 } from "firebase/firestore";
@@ -88,43 +87,49 @@ function Lobby() {
   }, [lobbyId]);
   
 
-  useEffect(() => {
-    if (!lobbyId || !playerName) return;
+ useEffect(() => {
+  if (!lobbyId || !playerName) return;
 
-    const interval = setInterval(async () => {
-      const playerRef = doc(db, "lobbies", lobbyId);
-      await updateDoc(playerRef, {
-        [`players.${playerName}.lastSeen`]: Date.now()
-      });
-    }, 5000); // Update lastSeen every 5 seconds
+  const interval = setInterval(async () => {
+    const lobbyRef = doc(db, "lobbies", lobbyId);
+    const lobbySnap = await getDoc(lobbyRef);
+    if (!lobbySnap.exists()) return;
 
-    return () => clearInterval(interval);
-  }, [lobbyId, playerName]);
+    const data = lobbySnap.data();
+    const currentPlayers = data.players || [];
+
+    const updatedPlayers = currentPlayers.map((player: any) =>
+      player.id === playerName ? { ...player, lastSeen: Date.now() } : player
+    );
+
+    await updateDoc(lobbyRef, { players: updatedPlayers });
+  }, 5000); // every 5 seconds
+
+  return () => clearInterval(interval);
+}, [lobbyId, playerName]);
+
 
   useEffect(() => {
     const handleUnload = async () => {
-      if (!lobbyId || !playerName) return;
+  if (!lobbyId || !playerName) return;
 
-      const lobbyRef = doc(db, "lobbies", lobbyId);
+  const lobbyRef = doc(db, "lobbies", lobbyId);
+  const lobbySnap = await getDoc(lobbyRef);
+  if (!lobbySnap.exists()) return;
 
-      // Remove the player
-      await updateDoc(lobbyRef, {
-        [`players.${playerName}`]: deleteField(),
-      });
+  const data = lobbySnap.data();
+  const currentPlayers = data.players || [];
 
-      // Check if anyone's left
-      const updatedLobby = await getDoc(lobbyRef);
-      if (updatedLobby.exists()) {
-        const data = updatedLobby.data();
-        const players = data.players || {};
+  const updatedPlayers = currentPlayers.filter((player: any) => player.id !== playerName);
 
-        if (Object.keys(players).length === 0) {
-          // No one left — delete the lobby
-          await deleteDoc(lobbyRef);
-          console.log("Lobby deleted because it was empty.");
-        }
-      }
-    };
+  if (updatedPlayers.length === 0) {
+    await deleteDoc(lobbyRef);
+    console.log("Lobby deleted because it was empty.");
+  } else {
+    await updateDoc(lobbyRef, { players: updatedPlayers });
+  }
+};
+
 
     window.addEventListener("beforeunload", handleUnload);
     return () => window.removeEventListener("beforeunload", handleUnload);
