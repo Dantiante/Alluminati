@@ -1,8 +1,9 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Home from "./Home";
+import Home from "./Pages/Home/Home";
 import Questions from "./Pages/Questions/Questions";
 import Lobby from "./Pages/Lobby/Lobby";
+import Game from "./Pages/Game/Game";
 
 // 🎨 Function to generate random gradient colors
 function getRandomGradient() {
@@ -41,6 +42,8 @@ function AppRouter() {
         <Route path="/" element={<Home />} />
         <Route path="/questions" element={<Questions changeBackground={() => setBackground(getRandomGradient())} />} />
         <Route path="/lobby" element={<Lobby />} />
+        <Route path="*" element={<Home />} /> {/* Redirect to Home for any unknown routes */}
+        <Route path="/game" element={<Game/>} />
       </Routes>
     </div>
   );

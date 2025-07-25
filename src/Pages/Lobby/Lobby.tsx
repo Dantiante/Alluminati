@@ -184,6 +184,9 @@ function Lobby() {
         <div>
           <h3>Lobby Code: <strong>{lobbyId}</strong></h3>
           <button onClick={() => navigator.clipboard.writeText(lobbyId)}>Copy Code</button>
+          <Link to="/game">
+          <button>Start Game</button>
+          </Link>
         </div>
       ) : (
         <>
