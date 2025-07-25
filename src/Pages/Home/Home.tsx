@@ -16,6 +16,9 @@ function Home() {
     return localStorage.getItem("playerName") || "Player";
   });
 
+  const [isUploading] = useState(false);
+
+
   useEffect(() => {
     // Reset to Home page background
     document.documentElement.style.background = "linear-gradient(to bottom, rgb(0, 26, 255), #4facfe, #d0f5f5)";
@@ -24,8 +27,8 @@ function Home() {
       document.documentElement.style.background = ""; // Clear on unmount
     };
   }, []);
-
-  const uploadToImgBB = async (file: File) => {
+// 2b53a3358800057b5470efaaef387be4
+const uploadToImgBB = async (file: File) => {
   const apiKey = "2b53a3358800057b5470efaaef387be4"; // replace this with your actual key
 
   // Convert file to base64 string
@@ -73,6 +76,7 @@ function Home() {
 
 
 
+
   // Function to handle image upload
 const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   if (e.target.files && e.target.files[0]) {
@@ -90,6 +94,8 @@ const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
 
 
+
+
   // Function to handle name change
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPlayerName(e.target.value);
@@ -100,6 +106,14 @@ const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setShowIntro(false);
   };
 
+  useEffect(() => {
+  const timeout = setTimeout(() => {
+    setShowIntro(false); // skip intro if video doesn't start after 5 seconds
+  }, 5000);
+
+  return () => clearTimeout(timeout);
+}, []);
+
   if (showIntro) {
     return (
       <div style={{ textAlign: 'center', marginTop: 50 }}>
@@ -107,6 +121,7 @@ const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
           src="/Intro.mp4"
           autoPlay
           muted
+          playsInline
           onEnded={handleVideoEnd}
           className='intro-video'
         />
@@ -166,8 +181,11 @@ const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
         <nav>
           <Link to="/lobby">
-            <button>Join Game</button>
+            <button disabled={isUploading}>
+              {isUploading ? "Uploading..." : "Join Game"}
+            </button>
           </Link>
+
         </nav>
       </div>
     </div>

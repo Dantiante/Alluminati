@@ -91,3 +91,8 @@ body {
   object-fit: cover;
   z-index: 9999;
 }
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

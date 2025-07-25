@@ -1,1 +1,2 @@
-Fix user disappearing in lobby
+Continue on Game page
+Make sure that the lobby connects to game page and that images don't disappear
