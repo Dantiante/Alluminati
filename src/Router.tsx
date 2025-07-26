@@ -1,7 +1,6 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Home from "./frontend/Pages/Home/Home";
-import Questions from "./backend/data/Questions/Questions";
 import Lobby from "./frontend/Pages/Lobby/Lobby";
 import Game from "./frontend/Pages/Game/Game";
 
@@ -40,10 +39,9 @@ function AppRouter() {
     <div id="page-content" className="visible">
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/questions" element={<Questions changeBackground={() => setBackground(getRandomGradient())} />} />
         <Route path="/lobby" element={<Lobby />} />
         <Route path="*" element={<Home />} /> {/* Redirect to Home for any unknown routes */}
-        <Route path="/game" element={<Game/>} />
+        <Route path="/game/:lobbyId" element={<Game/>} />
       </Routes>
     </div>
   );
