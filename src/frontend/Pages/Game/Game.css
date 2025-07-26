@@ -1,0 +1,55 @@
+body {
+  background: linear-gradient(to bottom, darkgreen, green, lightgreen, palegreen);
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.Container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  width: 100%;
+}
+
+.choices {
+  display: flex;
+  gap: 4rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.choices button {
+  background-color: transparent;
+  border: none;
+  padding: 1.5rem;
+  border-radius: 50%; /* Fully circular button */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  width: 140px;
+  height: 140px;
+  color: white;
+  font-weight: bold;
+}
+
+.choices button:hover {
+  transform: scale(1.05);
+}
+
+.player-image {
+  width: 125px;
+  height: 125px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid black;
+  margin-bottom: 0.5rem;
+}

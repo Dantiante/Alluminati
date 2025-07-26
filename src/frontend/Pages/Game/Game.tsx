@@ -15,7 +15,7 @@ function Game() {
   const [selected, setSelected] = useState<string | null>(null);
   const [votes, setVotes] = useState<{ A: number; B: number }>({ A: 0, B: 0 });
   const [hostId, setHostId] = useState<string | null>(null);
-  const [players, setPlayers] = useState<any[]>([]);  // <-- keep players in state so we can use it!
+  const [players, setPlayers] = useState<any[]>([]);
   const [personA, setPersonA] = useState<string | null>(null);
   const [personB, setPersonB] = useState<string | null>(null);
 
@@ -26,6 +26,15 @@ function Game() {
   if (!lobbyId) return <div>Invalid lobby ID.</div>;
 
   const lobbyRef = doc(db, "lobbies", lobbyId);
+
+  // Find player object by name
+  const findPlayerByName = (name: string | null, playersList: any[]) => {
+    return playersList.find((p) => p.name === name) || null;
+  };
+
+  // Derived player objects for display and images, fallback gracefully
+  const playerAObj = findPlayerByName(personA, players) || players[0] || null;
+  const playerBObj = findPlayerByName(personB, players) || players[1] || null;
 
   useEffect(() => {
     const unsubscribe = onSnapshot(lobbyRef, (docSnap) => {
@@ -81,7 +90,7 @@ function Game() {
       [field]: votes[choice] + 1,
     })
       .then(() => {
-        const votedFor = choice === "A" ? (personA || players[0]?.name) : (personB || players[1]?.name);
+        const votedFor = choice === "A" ? playerAObj?.name : playerBObj?.name;
         console.log(`[handleVote] Vote recorded for: ${votedFor}`);
       })
       .catch((error) => console.error("[handleVote] Failed to vote:", error));
@@ -117,17 +126,17 @@ function Game() {
       return;
     }
 
-    const { personA, personB } = pickTwoDistinctPlayers(currentPlayers);
+    const { personA: nextPersonA, personB: nextPersonB } = pickTwoDistinctPlayers(currentPlayers);
 
     await updateDoc(lobbyRef, {
       round: currentRound + 1,
       phase: "voting",
       votes: { A: 0, B: 0 },
-      personA,
-      personB,
+      personA: nextPersonA,
+      personB: nextPersonB,
     });
 
-    console.log("[handleNextRound] New round started with:", personA, "vs", personB);
+    console.log("[handleNextRound] New round started with:", nextPersonA, "vs", nextPersonB);
     setSelected(null);
     voteLocked.current = false;
   };
@@ -180,14 +189,30 @@ function Game() {
 
           {phase === "voting" && (
             <div className="choices">
-              <button onClick={() => handleVote("A")} disabled={selected !== null}>
-                {personA || players[0]?.name || "Person A"}
+              <button onClick={() => handleVote("A")} disabled={selected !== null} className="choice-button">
+                {playerAObj ? (
+                  <>
+                    <img src={playerAObj.image} alt={playerAObj.name} className="player-image" />
+                    <span>{playerAObj.name}</span>
+                  </>
+                ) : (
+                  "Person A"
+                )}
               </button>
-              <button onClick={() => handleVote("B")} disabled={selected !== null}>
-                {personB || players[1]?.name || "Person B"}
+
+              <button onClick={() => handleVote("B")} disabled={selected !== null} className="choice-button">
+                {playerBObj ? (
+                  <>
+                    <img src={playerBObj.image} alt={playerBObj.name} className="player-image" />
+                    <span>{playerBObj.name}</span>
+                  </>
+                ) : (
+                  "Person B"
+                )}
               </button>
+
               {selected && (
-                <p>You voted for: {selected === "A" ? (personA || players[0]?.name) : (personB || players[1]?.name)}</p>
+                <p>You voted for: {selected === "A" ? playerAObj?.name || "Person A" : playerBObj?.name || "Person B"}</p>
               )}
             </div>
           )}
@@ -195,8 +220,8 @@ function Game() {
           {phase === "results" && (
             <div>
               <h3>Results:</h3>
-              <p>{personA || players[0]?.name || "Person A"}: {votes.A} vote(s)</p>
-              <p>{personB || players[1]?.name || "Person B"}: {votes.B} vote(s)</p>
+              <p>{playerAObj?.name || "Person A"}: {votes.A} vote(s)</p>
+              <p>{playerBObj?.name || "Person B"}: {votes.B} vote(s)</p>
               {playerName === hostId && (
                 <button onClick={handleNextRound}>Next Round</button>
               )}
