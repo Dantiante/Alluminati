@@ -21,9 +21,9 @@ function Lobby() {
   const playerName = localStorage.getItem("playerName") || "Player";
   const playerImage = localStorage.getItem("profileImage") || "/Base_Profile_Icon.png";
 
-  // Generate a random 6-character alphanumeric lobby code
+  // Generate a random 6-digit numeric lobby code
   function generateLobbyCode(length = 6) {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const chars = "0123456789";
     let result = "";
     for (let i = 0; i < length; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -31,12 +31,13 @@ function Lobby() {
     return result;
   }
 
-  // Create lobby with custom short ID
+  // Create lobby with custom short numeric ID
   const createLobby = async () => {
     try {
       let newLobbyId = "";
       let exists = true;
 
+      // Loop until we get a unique lobby code
       while (exists) {
         newLobbyId = generateLobbyCode();
         const docRef = doc(db, "lobbies", newLobbyId);
@@ -214,13 +215,22 @@ function Lobby() {
       ) : (
         <>
           <button onClick={createLobby}>Create Lobby</button>
-          <input
-            type="text"
-            placeholder="Enter Lobby Code"
-            value={inputLobbyId}
-            onChange={(e) => setInputLobbyId(e.target.value.toUpperCase())}
-          />
-          <button onClick={joinLobby}>Join Lobby</button>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              joinLobby();
+            }}
+          >
+            <input
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="Enter Lobby Code"
+              value={inputLobbyId}
+              onChange={(e) => setInputLobbyId(e.target.value)}
+            />
+            <button type="submit">Join Lobby</button>
+          </form>
         </>
       )}
 
