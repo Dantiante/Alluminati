@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { db } from "../../Firebase/FirebaseConfig";
 import {
   collection,
-  addDoc,
+  setDoc,
   doc,
   updateDoc,
   getDoc,
@@ -21,12 +21,44 @@ function Lobby() {
   const playerName = localStorage.getItem("playerName") || "Player";
   const playerImage = localStorage.getItem("profileImage") || "/Base_Profile_Icon.png";
 
+  // Generate a random 6-digit numeric lobby code
+  function generateLobbyCode(length = 6) {
+    const chars = "0123456789";
+    let result = "";
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  // Create lobby with custom short numeric ID
   const createLobby = async () => {
     try {
-      const newLobbyRef = await addDoc(collection(db, "lobbies"), {
-        players: [{ id: playerName, name: playerName, image: playerImage, lastSeen: Date.now() }],
+      let newLobbyId = "";
+      let exists = true;
+
+      // Loop until we get a unique lobby code
+      while (exists) {
+        newLobbyId = generateLobbyCode();
+        const docRef = doc(db, "lobbies", newLobbyId);
+        const docSnap = await getDoc(docRef);
+        exists = docSnap.exists();
+      }
+
+      const lobbyRef = doc(db, "lobbies", newLobbyId);
+      await setDoc(lobbyRef, {
+        players: [
+          {
+            id: playerName,
+            name: playerName,
+            image: playerImage,
+            lastSeen: Date.now(),
+          },
+        ],
       });
-      setLobbyId(newLobbyRef.id);
+
+      setLobbyId(newLobbyId);
+      console.log("Lobby created:", newLobbyId);
     } catch (error) {
       console.error("Error creating lobby:", error);
     }
@@ -49,9 +81,18 @@ function Lobby() {
         if (!isAlreadyInLobby) {
           const updatedPlayers = [
             ...existingPlayers,
-            { id: playerName, name: playerName, image: playerImage, lastSeen: Date.now() },
+            {
+              id: playerName,
+              name: playerName,
+              image: playerImage,
+              lastSeen: Date.now(),
+            },
           ];
+
           await updateDoc(lobbyRef, { players: updatedPlayers });
+          console.log("Joined lobby:", inputLobbyId);
+        } else {
+          console.log("Player already in the lobby.");
         }
       } else {
         console.error("Lobby not found.");
@@ -61,37 +102,19 @@ function Lobby() {
     }
   };
 
-  // 🔁 Listen to lobby updates and remove stale players
   useEffect(() => {
     if (!lobbyId) return;
 
-    const unsubscribe = onSnapshot(doc(db, "lobbies", lobbyId), async (docSnap) => {
-      if (!docSnap.exists()) return;
-
-      const lobbyData = docSnap.data();
-      const allPlayers = Array.isArray(lobbyData.players) ? lobbyData.players : [];
-
-      const now = Date.now();
-      const timeout = 10000; // 10 seconds timeout
-
-      const activePlayers = allPlayers.filter(
-        (p: any) => now - p.lastSeen <= timeout
-      );
-
-      // If someone is stale, update Firestore
-      if (activePlayers.length !== allPlayers.length) {
-        const lobbyRef = doc(db, "lobbies", lobbyId);
-        await updateDoc(lobbyRef, { players: activePlayers });
-        console.log("⏳ Removed stale players.");
+    const unsubscribe = onSnapshot(doc(db, "lobbies", lobbyId), (docSnap) => {
+      if (docSnap.exists()) {
+        const lobbyData = docSnap.data();
+        setPlayers(Array.isArray(lobbyData.players) ? lobbyData.players : []);
       }
-
-      setPlayers(activePlayers);
     });
 
     return () => unsubscribe();
   }, [lobbyId]);
 
-  // ⏱ Heartbeat: update our own lastSeen every 5 seconds
   useEffect(() => {
     if (!lobbyId || !playerName) return;
 
@@ -104,7 +127,9 @@ function Lobby() {
       const currentPlayers = data.players || [];
 
       const updatedPlayers = currentPlayers.map((player: any) =>
-        player.id === playerName ? { ...player, lastSeen: Date.now() } : player
+        player.id === playerName
+          ? { ...player, lastSeen: Date.now() }
+          : player
       );
 
       await updateDoc(lobbyRef, { players: updatedPlayers });
@@ -113,7 +138,6 @@ function Lobby() {
     return () => clearInterval(interval);
   }, [lobbyId, playerName]);
 
-  // 🧹 Remove player on tab close
   useEffect(() => {
     const handleUnload = async () => {
       if (!lobbyId || !playerName) return;
@@ -125,10 +149,11 @@ function Lobby() {
       const data = lobbySnap.data();
       const currentPlayers = data.players || [];
 
-      const updatedPlayers = currentPlayers.filter((p: any) => p.id !== playerName);
+      const updatedPlayers = currentPlayers.filter((player: any) => player.id !== playerName);
 
       if (updatedPlayers.length === 0) {
         await deleteDoc(lobbyRef);
+        console.log("Lobby deleted because it was empty.");
       } else {
         await updateDoc(lobbyRef, { players: updatedPlayers });
       }
@@ -138,21 +163,30 @@ function Lobby() {
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [lobbyId, playerName]);
 
-  // 🧽 Optional: Periodic cleanup of fully empty lobbies
-  useEffect(() => {
-    const cleanupEmptyLobbies = async () => {
+  const cleanupEmptyLobbies = async () => {
+    try {
       const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
+
       for (const lobby of lobbiesSnapshot.docs) {
         const data = lobby.data();
         const players = data.players || [];
+
         if (Array.isArray(players) && players.length === 0) {
           await deleteDoc(doc(db, "lobbies", lobby.id));
+          console.log(`🧹 Deleted empty lobby: ${lobby.id}`);
         }
       }
-    };
+    } catch (error) {
+      console.error("❌ Error cleaning empty lobbies:", error);
+    }
+  };
 
-    const interval = setInterval(cleanupEmptyLobbies, 15 * 60 * 1000);
-    cleanupEmptyLobbies(); // Run on load
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cleanupEmptyLobbies();
+    }, 15 * 60 * 1000);
+
+    cleanupEmptyLobbies();
     return () => clearInterval(interval);
   }, []);
 
@@ -161,12 +195,13 @@ function Lobby() {
       <h1>Lobby</h1>
 
       <div className="player-list">
-        {players.map((player) => (
-          <div key={player.id} className="player">
-            <img src={player.image} alt={player.name} className="player-image" />
-            <p>{player.name}</p>
-          </div>
-        ))}
+        {Array.isArray(players) &&
+          players.map((player) => (
+            <div key={player.id} className="player">
+              <img src={player.image} alt={player.name} className="player-image" />
+              <p>{player.name}</p>
+            </div>
+          ))}
       </div>
 
       {lobbyId ? (
@@ -180,13 +215,22 @@ function Lobby() {
       ) : (
         <>
           <button onClick={createLobby}>Create Lobby</button>
-          <input
-            type="text"
-            placeholder="Enter Lobby Code"
-            value={inputLobbyId}
-            onChange={(e) => setInputLobbyId(e.target.value)}
-          />
-          <button onClick={joinLobby}>Join Lobby</button>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              joinLobby();
+            }}
+          >
+            <input
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="Enter Lobby Code"
+              value={inputLobbyId}
+              onChange={(e) => setInputLobbyId(e.target.value)}
+            />
+            <button type="submit">Join Lobby</button>
+          </form>
         </>
       )}
 
