@@ -1,2 +1,2 @@
 Continue on Game page
-Make sure that the lobby connects to game page and that images don't disappear
+Make sure that the intro plays on apple products
