@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { db } from "../../Firebase/FirebaseConfig";
+import { db } from "../../../backend/Firebase/FirebaseConfig";
 import {
   collection,
   setDoc,

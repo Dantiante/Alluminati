@@ -1,9 +1,9 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Home from "./Pages/Home/Home";
-import Questions from "./Pages/Questions/Questions";
-import Lobby from "./Pages/Lobby/Lobby";
-import Game from "./Pages/Game/Game";
+import Home from "./frontend/Pages/Home/Home";
+import Questions from "./backend/data/Questions/Questions";
+import Lobby from "./frontend/Pages/Lobby/Lobby";
+import Game from "./frontend/Pages/Game/Game";
 
 // 🎨 Function to generate random gradient colors
 function getRandomGradient() {
