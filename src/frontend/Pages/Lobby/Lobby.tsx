@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { db } from "../../../backend/Firebase/FirebaseConfig";
 import {
   collection,
@@ -9,35 +9,42 @@ import {
   getDoc,
   onSnapshot,
   deleteDoc,
-  getDocs
+  getDocs,
 } from "firebase/firestore";
+import { NaughtyQuestions } from "../../../backend/data/Questions/Questions";
 import "./Lobby.css";
 
 function Lobby() {
-  const [players, setPlayers] = useState<{ id: string; name: string; image: string }[]>([]);
+  const [players, setPlayers] = useState<
+    { id: string; name: string; image: string; isHost: boolean }[]
+  >([]);
   const [lobbyId, setLobbyId] = useState<string | null>(null);
   const [inputLobbyId, setInputLobbyId] = useState("");
+  const navigate = useNavigate();
 
   const playerName = localStorage.getItem("playerName") || "Player";
   const playerImage = localStorage.getItem("profileImage") || "/Base_Profile_Icon.png";
 
-  // Generate a random 6-digit numeric lobby code
   function generateLobbyCode(length = 6) {
-    const chars = "0123456789";
-    let result = "";
+    const digits = "0123456789";
+    let code = "";
     for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += digits[Math.floor(Math.random() * digits.length)];
     }
-    return result;
+    return code;
   }
 
-  // Create lobby with custom short numeric ID
+  function generateRandomQuestions(count = 20) {
+    return [...NaughtyQuestions]
+      .sort(() => 0.5 - Math.random())
+      .slice(0, count);
+  }
+
   const createLobby = async () => {
     try {
       let newLobbyId = "";
       let exists = true;
 
-      // Loop until we get a unique lobby code
       while (exists) {
         newLobbyId = generateLobbyCode();
         const docRef = doc(db, "lobbies", newLobbyId);
@@ -46,6 +53,7 @@ function Lobby() {
       }
 
       const lobbyRef = doc(db, "lobbies", newLobbyId);
+
       await setDoc(lobbyRef, {
         players: [
           {
@@ -53,8 +61,14 @@ function Lobby() {
             name: playerName,
             image: playerImage,
             lastSeen: Date.now(),
+            isHost: true,
           },
         ],
+        hostId: playerName,
+        phase: "waiting",
+        round: 0,
+        questions: generateRandomQuestions(),
+        votes: { A: 0, B: 0 },
       });
 
       setLobbyId(newLobbyId);
@@ -77,7 +91,10 @@ function Lobby() {
         const lobbyData = lobbyDoc.data();
         const existingPlayers = lobbyData.players || [];
 
-        const isAlreadyInLobby = existingPlayers.some((p: any) => p.id === playerName);
+        const isAlreadyInLobby = existingPlayers.some(
+          (p: any) => p.id === playerName
+        );
+
         if (!isAlreadyInLobby) {
           const updatedPlayers = [
             ...existingPlayers,
@@ -86,6 +103,7 @@ function Lobby() {
               name: playerName,
               image: playerImage,
               lastSeen: Date.now(),
+              isHost: false,
             },
           ];
 
@@ -109,11 +127,14 @@ function Lobby() {
       if (docSnap.exists()) {
         const lobbyData = docSnap.data();
         setPlayers(Array.isArray(lobbyData.players) ? lobbyData.players : []);
+        if (lobbyData.phase === "voting") {
+          navigate(`/game/${lobbyId}`);
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [lobbyId]);
+  }, [lobbyId, navigate]);
 
   useEffect(() => {
     if (!lobbyId || !playerName) return;
@@ -149,7 +170,9 @@ function Lobby() {
       const data = lobbySnap.data();
       const currentPlayers = data.players || [];
 
-      const updatedPlayers = currentPlayers.filter((player: any) => player.id !== playerName);
+      const updatedPlayers = currentPlayers.filter(
+        (player: any) => player.id !== playerName
+      );
 
       if (updatedPlayers.length === 0) {
         await deleteDoc(lobbyRef);
@@ -190,6 +213,19 @@ function Lobby() {
     return () => clearInterval(interval);
   }, []);
 
+  const currentPlayer = players.find((p) => p.id === playerName);
+  const isHost = currentPlayer?.isHost === true;
+
+  const handleStartGame = async () => {
+    if (!lobbyId || !isHost) return;
+    const lobbyRef = doc(db, "lobbies", lobbyId);
+    await updateDoc(lobbyRef, {
+      phase: "voting",
+      round: 0,
+      votes: { A: 0, B: 0 },
+    });
+  };
+
   return (
     <div className="Container">
       <h1>Lobby</h1>
@@ -199,18 +235,27 @@ function Lobby() {
           players.map((player) => (
             <div key={player.id} className="player">
               <img src={player.image} alt={player.name} className="player-image" />
-              <p>{player.name}</p>
+              <p>
+                {player.name} {player.isHost ? "(Host)" : ""}
+              </p>
             </div>
           ))}
       </div>
 
       {lobbyId ? (
         <div>
-          <h3>Lobby Code: <strong>{lobbyId}</strong></h3>
-          <button onClick={() => navigator.clipboard.writeText(lobbyId)}>Copy Code</button>
-          <Link to="/game">
-            <button>Start Game</button>
-          </Link>
+          <h3>
+            Lobby Code: <strong>{lobbyId}</strong>
+          </h3>
+          <button onClick={() => navigator.clipboard.writeText(lobbyId)}>
+            Copy Code
+          </button>
+
+          {isHost ? (
+            <button onClick={handleStartGame}>Start Game</button>
+          ) : (
+            <p>Waiting for the host to start the game...</p>
+          )}
         </div>
       ) : (
         <>

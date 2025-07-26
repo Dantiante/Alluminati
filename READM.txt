@@ -1,2 +1,2 @@
-Continue on Game page
+Fix CSS on game page
 Make sure that the intro plays on apple products
