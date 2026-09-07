@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { db } from "../../../backend/Firebase/FirebaseConfig";
-import { doc, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
+import { arrayUnion, doc, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import "./Game.css";
 
@@ -132,17 +132,11 @@ function Game() {
       return;
     }
 
-    const nextVotes = {
-      A: [...votes.A],
-      B: [...votes.B],
-    };
-
-    nextVotes[choice].push(currentPlayerId);
     voteLocked.current = true;
     setSelected(choice);
 
     updateDoc(lobbyRef, {
-      votes: nextVotes,
+      [`votes.${choice}`]: arrayUnion(currentPlayerId),
     })
       .then(() => {
         const votedFor = choice === "A" ? playerAObj?.name : playerBObj?.name;
