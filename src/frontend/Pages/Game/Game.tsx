@@ -24,6 +24,7 @@ function Game() {
   const playerName = localStorage.getItem("playerName") || "Player";
   const currentPlayerId = playerName;
   const voteLocked = useRef(false);
+  const resultsTriggered = useRef(false);
   const prevPhase = useRef<string | null>(null);
 
   if (!lobbyId) return <div>Invalid lobby ID.</div>;
@@ -60,6 +61,7 @@ function Game() {
 
         if (data.phase === "voting" && prevPhase.current !== "voting") {
           voteLocked.current = false;
+          resultsTriggered.current = false;
           setSelected(null);
           const allPlayers = data.players || [];
           console.log("[Round Start] Players in lobby:", allPlayers.map((p: { name: any }) => p.name));
@@ -98,6 +100,23 @@ function Game() {
     const timer = window.setInterval(updateCountdown, 250);
     return () => window.clearInterval(timer);
   }, [phase, voteEndsAt, playerName, hostId]);
+
+  useEffect(() => {
+    if (phase !== "voting" || playerName !== hostId || players.length === 0) {
+      return;
+    }
+
+    const uniqueVoters = new Set([...votes.A, ...votes.B]);
+    if (uniqueVoters.size < players.length || resultsTriggered.current) {
+      return;
+    }
+
+    resultsTriggered.current = true;
+    updateDoc(lobbyRef, { phase: "results" }).catch((error) => {
+      resultsTriggered.current = false;
+      console.error("[Voting] Failed to move to results:", error);
+    });
+  }, [phase, playerName, hostId, players, votes]);
 
   const handleVote = (choice: "A" | "B") => {
     if (voteLocked.current || selected !== null) {
