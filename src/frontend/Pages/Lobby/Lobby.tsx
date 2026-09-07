@@ -14,6 +14,8 @@ import {
 import { NaughtyQuestions } from "../../../backend/data/Questions/Questions";
 import "./Lobby.css";
 
+const VOTING_DURATION = 30000;
+
 function Lobby() {
   const [players, setPlayers] = useState<
     { id: string; name: string; image: string; isHost: boolean }[]
@@ -223,6 +225,7 @@ function Lobby() {
       phase: "voting",
       round: 0,
       votes: { A: [], B: [] },
+      voteEndsAt: Date.now() + VOTING_DURATION,
     });
   };
 

@@ -73,8 +73,13 @@ function Game() {
   }, [lobbyId]);
 
   useEffect(() => {
-    if (phase !== "voting" || !voteEndsAt) {
+    if (phase !== "voting") {
       setTimeLeft(Math.ceil(VOTING_DURATION / 1000));
+      return;
+    }
+
+    if (!voteEndsAt) {
+      setTimeLeft(0);
       return;
     }
 
