@@ -5,7 +5,7 @@ import { useParams } from "react-router-dom";
 import "./Game.css";
 
 const TOTAL_ROUNDS = 20;
-const VOTING_DURATION = 15000;
+const VOTING_DURATION = 30000;
 
 function Game() {
   const { lobbyId } = useParams<{ lobbyId: string }>();
@@ -18,6 +18,8 @@ function Game() {
   const [players, setPlayers] = useState<any[]>([]);
   const [personA, setPersonA] = useState<string | null>(null);
   const [personB, setPersonB] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(Math.ceil(VOTING_DURATION / 1000));
+  const [voteEndsAt, setVoteEndsAt] = useState<number | null>(null);
 
   const playerName = localStorage.getItem("playerName") || "Player";
   const currentPlayerId = playerName;
@@ -52,6 +54,7 @@ function Game() {
         setPlayers(data.players || []);
         setPersonA(data.personA || null);
         setPersonB(data.personB || null);
+        setVoteEndsAt(typeof data.voteEndsAt === "number" ? data.voteEndsAt : null);
 
         console.log("[onSnapshot] Lobby data:", data);
 
@@ -70,15 +73,26 @@ function Game() {
   }, [lobbyId]);
 
   useEffect(() => {
-    if (phase === "voting" && playerName === hostId) {
-      console.log("[Voting Timer] Starting for 15 seconds.");
-      const timer = setTimeout(() => {
+    if (phase !== "voting" || !voteEndsAt) {
+      setTimeLeft(Math.ceil(VOTING_DURATION / 1000));
+      return;
+    }
+
+    const updateCountdown = () => {
+      const remainingMs = voteEndsAt - Date.now();
+      const nextValue = Math.max(0, Math.ceil(remainingMs / 1000));
+      setTimeLeft(nextValue);
+
+      if (nextValue <= 0 && playerName === hostId) {
         console.log("[Voting Timer] Time's up. Moving to results.");
         updateDoc(lobbyRef, { phase: "results" }).catch(console.error);
-      }, VOTING_DURATION);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, playerName, hostId]);
+      }
+    };
+
+    updateCountdown();
+    const timer = window.setInterval(updateCountdown, 250);
+    return () => window.clearInterval(timer);
+  }, [phase, voteEndsAt, playerName, hostId]);
 
   const handleVote = (choice: "A" | "B") => {
     if (voteLocked.current || selected !== null) {
@@ -149,6 +163,7 @@ function Game() {
       round: currentRound + 1,
       phase: "voting",
       votes: { A: [], B: [] },
+      voteEndsAt: Date.now() + VOTING_DURATION,
       personA: nextPersonA,
       personB: nextPersonB,
     });
@@ -182,6 +197,7 @@ function Game() {
       round: 0,
       phase: "voting",
       votes: { A: [], B: [] },
+      voteEndsAt: Date.now() + VOTING_DURATION,
       personA,
       personB,
     });
@@ -206,6 +222,7 @@ function Game() {
 
           {phase === "voting" && (
             <div className="choices">
+              <div className="vote-timer">Time left: {timeLeft}s</div>
               <button onClick={() => handleVote("A")} disabled={selected !== null} className="choice-button">
                 {playerAObj ? (
                   <>
