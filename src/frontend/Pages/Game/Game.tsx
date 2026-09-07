@@ -12,14 +12,15 @@ function Game() {
   const [questions, setQuestions] = useState<string[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [phase, setPhase] = useState<"waiting" | "voting" | "results">("waiting");
-  const [selected, setSelected] = useState<string | null>(null);
-  const [votes, setVotes] = useState<{ A: number; B: number }>({ A: 0, B: 0 });
+  const [selected, setSelected] = useState<"A" | "B" | null>(null);
+  const [votes, setVotes] = useState<{ A: string[]; B: string[] }>({ A: [], B: [] });
   const [hostId, setHostId] = useState<string | null>(null);
   const [players, setPlayers] = useState<any[]>([]);
   const [personA, setPersonA] = useState<string | null>(null);
   const [personB, setPersonB] = useState<string | null>(null);
 
   const playerName = localStorage.getItem("playerName") || "Player";
+  const currentPlayerId = playerName;
   const voteLocked = useRef(false);
   const prevPhase = useRef<string | null>(null);
 
@@ -43,7 +44,10 @@ function Game() {
         setQuestions(data.questions || []);
         setCurrentRound(data.round ?? 0);
         setPhase(data.phase ?? "waiting");
-        setVotes(data.votes || { A: 0, B: 0 });
+        setVotes({
+          A: Array.isArray(data.votes?.A) ? data.votes.A : [],
+          B: Array.isArray(data.votes?.B) ? data.votes.B : [],
+        });
         setHostId(data.hostId || null);
         setPlayers(data.players || []);
         setPersonA(data.personA || null);
@@ -82,12 +86,25 @@ function Game() {
       return;
     }
 
+    const hasVotedAlready = votes.A.includes(currentPlayerId) || votes.B.includes(currentPlayerId);
+    if (hasVotedAlready) {
+      voteLocked.current = true;
+      setSelected(choice === "A" ? "A" : "B");
+      console.log("[handleVote] Player has already voted this round.");
+      return;
+    }
+
+    const nextVotes = {
+      A: [...votes.A],
+      B: [...votes.B],
+    };
+
+    nextVotes[choice].push(currentPlayerId);
     voteLocked.current = true;
     setSelected(choice);
 
-    const field = `votes.${choice}`;
     updateDoc(lobbyRef, {
-      [field]: votes[choice] + 1,
+      votes: nextVotes,
     })
       .then(() => {
         const votedFor = choice === "A" ? playerAObj?.name : playerBObj?.name;
@@ -131,7 +148,7 @@ function Game() {
     await updateDoc(lobbyRef, {
       round: currentRound + 1,
       phase: "voting",
-      votes: { A: 0, B: 0 },
+      votes: { A: [], B: [] },
       personA: nextPersonA,
       personB: nextPersonB,
     });
@@ -164,7 +181,7 @@ function Game() {
       questions: shuffledQuestions,
       round: 0,
       phase: "voting",
-      votes: { A: 0, B: 0 },
+      votes: { A: [], B: [] },
       personA,
       personB,
     });
@@ -220,8 +237,8 @@ function Game() {
           {phase === "results" && (
             <div>
               <h3>Results:</h3>
-              <p>{playerAObj?.name || "Person A"}: {votes.A} vote(s)</p>
-              <p>{playerBObj?.name || "Person B"}: {votes.B} vote(s)</p>
+              <p>{playerAObj?.name || "Person A"}: {votes.A.length} vote(s)</p>
+              <p>{playerBObj?.name || "Person B"}: {votes.B.length} vote(s)</p>
               {playerName === hostId && (
                 <button onClick={handleNextRound}>Next Round</button>
               )}

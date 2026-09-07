@@ -68,7 +68,7 @@ function Lobby() {
         phase: "waiting",
         round: 0,
         questions: generateRandomQuestions(),
-        votes: { A: 0, B: 0 },
+        votes: { A: [], B: [] },
       });
 
       setLobbyId(newLobbyId);
@@ -222,7 +222,7 @@ function Lobby() {
     await updateDoc(lobbyRef, {
       phase: "voting",
       round: 0,
-      votes: { A: 0, B: 0 },
+      votes: { A: [], B: [] },
     });
   };
 
