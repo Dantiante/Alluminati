@@ -5,7 +5,6 @@ import './Home.css';
 
 function Home() {
 
-  const [showIntro, setShowIntro] = useState(true);
 
 
   const [profileImage, setProfileImage] = useState<string>(() => {
@@ -102,32 +101,10 @@ const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     localStorage.setItem("playerName", e.target.value); // Save to localStorage
   };
 
-    const handleVideoEnd = () => {
-    setShowIntro(false);
-  };
+ 
 
-  useEffect(() => {
-  const timeout = setTimeout(() => {
-    setShowIntro(false); // skip intro if video doesn't start after 5 seconds
-  }, 5000);
 
-  return () => clearTimeout(timeout);
-}, []);
 
-  if (showIntro) {
-    return (
-      <div style={{ textAlign: 'center', marginTop: 50 }}>
-        <video
-          src="/Intro.mp4"
-          autoPlay
-          muted
-          playsInline
-          onEnded={handleVideoEnd}
-          className='intro-video'
-        />
-      </div>
-    );
-  }
 
 
   return (

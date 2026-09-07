@@ -1,2 +1,3 @@
-Fix CSS on game page and make the people chosen random from the list on every round
-Make sure that the intro plays on apple products
+Make it so that one can choose different sets of questions
+
+Fix/Remove the intro
