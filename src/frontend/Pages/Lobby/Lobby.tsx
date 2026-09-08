@@ -21,6 +21,7 @@ function Lobby() {
   const [players, setPlayers] = useState<
     { id: string; name: string; image: string; isHost: boolean }[]
   >([]);
+  const [hostId, setHostId] = useState<string | null>(null);
   const [lobbyId, setLobbyId] = useState<string | null>(null);
   const [inputLobbyId, setInputLobbyId] = useState("");
   const navigate = useNavigate();
@@ -130,6 +131,7 @@ function Lobby() {
       if (docSnap.exists()) {
         const lobbyData = docSnap.data();
         setPlayers(Array.isArray(lobbyData.players) ? lobbyData.players : []);
+        setHostId(lobbyData.hostId || null);
         if (lobbyData.phase === "voting") {
           navigate(`/game/${lobbyId}`);
         }
@@ -189,12 +191,12 @@ function Lobby() {
     return () => window.removeEventListener("pagehide", handleUnload);
   }, [lobbyId, playerName]);
 
-  const currentPlayer = players.find((p) => p.id === playerName);
-  const isHost = currentPlayer?.isHost === true;
+  const isHost = hostId === playerName;
 
   const cleanupEmptyLobbies = async () => {
     try {
       const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
+      console.log(`[Host Cleanup] Read ${lobbiesSnapshot.size} lobbies.`);
 
       for (const lobby of lobbiesSnapshot.docs) {
         const lobbyRef = doc(db, "lobbies", lobby.id);
@@ -232,7 +234,7 @@ function Lobby() {
 
     cleanupEmptyLobbies();
     return () => clearInterval(interval);
-  }, [isHost]);
+  }, [isHost, hostId, playerName]);
 
   const handleStartGame = async () => {
     if (!lobbyId || !isHost) return;

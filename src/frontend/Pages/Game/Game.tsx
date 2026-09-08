@@ -143,6 +143,7 @@ function Game() {
     const cleanupEmptyLobbies = async () => {
       try {
         const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
+        console.log(`[Host Cleanup] Read ${lobbiesSnapshot.size} lobbies.`);
 
         for (const lobby of lobbiesSnapshot.docs) {
           const lobbyRef = doc(db, "lobbies", lobby.id);
