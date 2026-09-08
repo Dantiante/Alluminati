@@ -11,11 +11,25 @@ import {
   getDocs,
   runTransaction,
 } from "firebase/firestore";
-import { NaughtyQuestions } from "../../../backend/data/Questions/Questions";
+import {
+  IceBreakerQuestions,
+  NaughtyQuestions,
+  ShitfacedQuestions,
+  SpicyQuestions,
+} from "../../../backend/data/Questions/Questions";
 import "./Lobby.css";
 
 const VOTING_DURATION = 30000;
 const STALE_PLAYER_TIMEOUT = 60 * 1000;
+
+const QUESTION_SETS = {
+  naughty: { label: "Naughty", questions: NaughtyQuestions },
+  iceBreaker: { label: "Ice Breaker", questions: IceBreakerQuestions },
+  spicy: { label: "Spicy", questions: SpicyQuestions },
+  shitfaced: { label: "Shitfaced", questions: ShitfacedQuestions },
+} as const;
+
+type QuestionSetKey = keyof typeof QUESTION_SETS;
 
 function Lobby() {
   const [players, setPlayers] = useState<
@@ -24,6 +38,7 @@ function Lobby() {
   const [hostId, setHostId] = useState<string | null>(null);
   const [lobbyId, setLobbyId] = useState<string | null>(null);
   const [inputLobbyId, setInputLobbyId] = useState("");
+  const [selectedQuestionSet, setSelectedQuestionSet] = useState<QuestionSetKey>("naughty");
   const navigate = useNavigate();
 
   const playerName = localStorage.getItem("playerName") || "Player";
@@ -38,8 +53,8 @@ function Lobby() {
     return code;
   }
 
-  function generateRandomQuestions(count = 20) {
-    return [...NaughtyQuestions]
+  function generateRandomQuestions(questionSet: QuestionSetKey, count = 20) {
+    return [...QUESTION_SETS[questionSet].questions]
       .sort(() => 0.5 - Math.random())
       .slice(0, count);
   }
@@ -71,7 +86,7 @@ function Lobby() {
         hostId: playerName,
         phase: "waiting",
         round: 0,
-        questions: generateRandomQuestions(),
+        questions: generateRandomQuestions(selectedQuestionSet),
         votes: { A: [], B: [] },
       });
 
@@ -242,6 +257,8 @@ function Lobby() {
     await updateDoc(lobbyRef, {
       phase: "voting",
       round: 0,
+      questions: generateRandomQuestions(selectedQuestionSet),
+      questionSet: selectedQuestionSet,
       votes: { A: [], B: [] },
       voteEndsAt: Date.now() + VOTING_DURATION,
     });
@@ -273,7 +290,21 @@ function Lobby() {
           </button>
 
           {isHost ? (
-            <button onClick={handleStartGame}>Start Game</button>
+            <div className="question-set-controls">
+              <label htmlFor="question-set">Question set</label>
+              <select
+                id="question-set"
+                value={selectedQuestionSet}
+                onChange={(event) => setSelectedQuestionSet(event.target.value as QuestionSetKey)}
+              >
+                {Object.entries(QUESTION_SETS).map(([key, questionSet]) => (
+                  <option key={key} value={key}>
+                    {questionSet.label}
+                  </option>
+                ))}
+              </select>
+              <button onClick={handleStartGame}>Start Game</button>
+            </div>
           ) : (
             <p>Waiting for the host to start the game...</p>
           )}

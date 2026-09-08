@@ -19,3 +19,16 @@ body {
   object-fit: cover; /* Ensures the image fills the space */
   border: 2px solid white; /* Optional: Adds a border */
 }
+
+.question-set-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.question-set-controls select {
+  min-width: 180px;
+  padding: 8px;
+}
