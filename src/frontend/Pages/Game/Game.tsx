@@ -10,7 +10,7 @@ import {
   runTransaction,
   updateDoc,
 } from "firebase/firestore";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import "./Game.css";
 
 const TOTAL_ROUNDS = 20;
@@ -19,6 +19,7 @@ const STALE_PLAYER_TIMEOUT = 60 * 1000;
 
 function Game() {
   const { lobbyId } = useParams<{ lobbyId: string }>();
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<string[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [phase, setPhase] = useState<"waiting" | "voting" | "results">("waiting");
@@ -35,6 +36,8 @@ function Game() {
   const currentPlayerId = playerName;
   const voteLocked = useRef(false);
   const resultsTriggered = useRef(false);
+  const returningToLobby = useRef(false);
+  const lobbyLoaded = useRef(false);
   const prevPhase = useRef<string | null>(null);
 
   if (!lobbyId) return <div>Invalid lobby ID.</div>;
@@ -66,6 +69,7 @@ function Game() {
         setPersonA(data.personA || null);
         setPersonB(data.personB || null);
         setVoteEndsAt(typeof data.voteEndsAt === "number" ? data.voteEndsAt : null);
+        lobbyLoaded.current = true;
 
         console.log("[onSnapshot] Lobby data:", data);
 
@@ -109,7 +113,16 @@ function Game() {
   }, [lobbyId, currentPlayerId]);
 
   useEffect(() => {
+    if (!lobbyLoaded.current || phase !== "waiting") return;
+
+    returningToLobby.current = true;
+    navigate(`/lobby?lobbyId=${lobbyId}`);
+  }, [phase, lobbyId, navigate]);
+
+  useEffect(() => {
     const removePlayerFromLobby = async () => {
+      if (returningToLobby.current) return;
+
       try {
         await runTransaction(db, async (transaction) => {
           const lobbySnap = await transaction.get(lobbyRef);
@@ -274,7 +287,14 @@ function Game() {
     const currentPlayers = data?.players || [];
 
     if (currentRound + 1 >= TOTAL_ROUNDS) {
-      alert("Game over!");
+      await updateDoc(lobbyRef, {
+        phase: "waiting",
+        round: 0,
+        votes: { A: [], B: [] },
+        voteEndsAt: null,
+        personA: null,
+        personB: null,
+      });
       return;
     }
 
@@ -378,7 +398,9 @@ function Game() {
               <p>{playerAObj?.name || "Person A"}: {votes.A.length} vote(s)</p>
               <p>{playerBObj?.name || "Person B"}: {votes.B.length} vote(s)</p>
               {playerName === hostId && (
-                <button onClick={handleNextRound}>Next Round</button>
+                <button onClick={handleNextRound}>
+                  {currentRound + 1 >= TOTAL_ROUNDS ? "Return to Lobby" : "Next Round"}
+                </button>
               )}
             </div>
           )}

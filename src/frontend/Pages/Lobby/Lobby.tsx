@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { db } from "../../../backend/Firebase/FirebaseConfig";
 import {
   collection,
@@ -40,9 +40,17 @@ function Lobby() {
   const [inputLobbyId, setInputLobbyId] = useState("");
   const [selectedQuestionSet, setSelectedQuestionSet] = useState<QuestionSetKey>("naughty");
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const playerName = localStorage.getItem("playerName") || "Player";
   const playerImage = localStorage.getItem("profileImage") || "/Base_Profile_Icon.png";
+
+  useEffect(() => {
+    const returningLobbyId = searchParams.get("lobbyId");
+    if (returningLobbyId && !lobbyId) {
+      setLobbyId(returningLobbyId);
+    }
+  }, [searchParams, lobbyId]);
 
   function generateLobbyCode(length = 6) {
     const digits = "0123456789";
