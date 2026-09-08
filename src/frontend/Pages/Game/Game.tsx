@@ -1,6 +1,16 @@
 import { useEffect, useState, useRef } from "react";
 import { db } from "../../../backend/Firebase/FirebaseConfig";
-import { arrayUnion, doc, onSnapshot, updateDoc, getDoc, runTransaction } from "firebase/firestore";
+import {
+  arrayUnion,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  getDoc,
+  onSnapshot,
+  runTransaction,
+  updateDoc,
+} from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import "./Game.css";
 
@@ -102,6 +112,30 @@ function Game() {
       window.removeEventListener("pagehide", removePlayerFromLobby);
     };
   }, [lobbyId, currentPlayerId]);
+
+  useEffect(() => {
+    if (playerName !== hostId) return;
+
+    const cleanupEmptyLobbies = async () => {
+      try {
+        const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
+
+        for (const lobby of lobbiesSnapshot.docs) {
+          const playersInLobby = lobby.data().players || [];
+          if (Array.isArray(playersInLobby) && playersInLobby.length === 0) {
+            await deleteDoc(doc(db, "lobbies", lobby.id));
+            console.log(`[Host Cleanup] Deleted empty lobby: ${lobby.id}`);
+          }
+        }
+      } catch (error) {
+        console.error("[Host Cleanup] Failed to clean empty lobbies:", error);
+      }
+    };
+
+    cleanupEmptyLobbies();
+    const interval = window.setInterval(cleanupEmptyLobbies, 15 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [playerName, hostId]);
 
   useEffect(() => {
     if (phase !== "voting") {

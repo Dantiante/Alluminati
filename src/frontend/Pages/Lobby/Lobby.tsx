@@ -189,6 +189,9 @@ function Lobby() {
     return () => window.removeEventListener("pagehide", handleUnload);
   }, [lobbyId, playerName]);
 
+  const currentPlayer = players.find((p) => p.id === playerName);
+  const isHost = currentPlayer?.isHost === true;
+
   const cleanupEmptyLobbies = async () => {
     try {
       const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
@@ -208,16 +211,15 @@ function Lobby() {
   };
 
   useEffect(() => {
+    if (!isHost) return;
+
     const interval = setInterval(() => {
       cleanupEmptyLobbies();
     }, 15 * 60 * 1000);
 
     cleanupEmptyLobbies();
     return () => clearInterval(interval);
-  }, []);
-
-  const currentPlayer = players.find((p) => p.id === playerName);
-  const isHost = currentPlayer?.isHost === true;
+  }, [isHost]);
 
   const handleStartGame = async () => {
     if (!lobbyId || !isHost) return;
