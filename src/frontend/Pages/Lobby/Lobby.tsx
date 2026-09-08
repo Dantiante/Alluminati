@@ -10,6 +10,7 @@ import {
   onSnapshot,
   deleteDoc,
   getDocs,
+  runTransaction,
 } from "firebase/firestore";
 import { NaughtyQuestions } from "../../../backend/data/Questions/Questions";
 import "./Lobby.css";
@@ -166,26 +167,26 @@ function Lobby() {
       if (!lobbyId || !playerName) return;
 
       const lobbyRef = doc(db, "lobbies", lobbyId);
-      const lobbySnap = await getDoc(lobbyRef);
-      if (!lobbySnap.exists()) return;
+      await runTransaction(db, async (transaction) => {
+        const lobbySnap = await transaction.get(lobbyRef);
+        if (!lobbySnap.exists()) return;
 
-      const data = lobbySnap.data();
-      const currentPlayers = data.players || [];
+        const data = lobbySnap.data();
+        const updatedPlayers = (data.players || []).filter(
+          (player: { id: string }) => player.id !== playerName
+        );
 
-      const updatedPlayers = currentPlayers.filter(
-        (player: any) => player.id !== playerName
-      );
-
-      if (updatedPlayers.length === 0) {
-        await deleteDoc(lobbyRef);
-        console.log("Lobby deleted because it was empty.");
-      } else {
-        await updateDoc(lobbyRef, { players: updatedPlayers });
-      }
+        if (updatedPlayers.length === 0) {
+          transaction.delete(lobbyRef);
+          console.log("Lobby deleted because it was empty.");
+        } else {
+          transaction.update(lobbyRef, { players: updatedPlayers });
+        }
+      });
     };
 
-    window.addEventListener("beforeunload", handleUnload);
-    return () => window.removeEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handleUnload);
+    return () => window.removeEventListener("pagehide", handleUnload);
   }, [lobbyId, playerName]);
 
   const cleanupEmptyLobbies = async () => {

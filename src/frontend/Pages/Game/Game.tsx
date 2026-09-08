@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { db } from "../../../backend/Firebase/FirebaseConfig";
-import { arrayUnion, doc, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
+import { arrayUnion, doc, onSnapshot, updateDoc, getDoc, runTransaction } from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import "./Game.css";
 
@@ -73,6 +73,35 @@ function Game() {
 
     return () => unsubscribe();
   }, [lobbyId]);
+
+  useEffect(() => {
+    const removePlayerFromLobby = async () => {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const lobbySnap = await transaction.get(lobbyRef);
+          if (!lobbySnap.exists()) return;
+
+          const data = lobbySnap.data();
+          const remainingPlayers = (data.players || []).filter(
+            (player: { id: string }) => player.id !== currentPlayerId
+          );
+
+          if (remainingPlayers.length === 0) {
+            transaction.delete(lobbyRef);
+          } else {
+            transaction.update(lobbyRef, { players: remainingPlayers });
+          }
+        });
+      } catch (error) {
+        console.error("[Game Exit] Failed to remove player:", error);
+      }
+    };
+
+    window.addEventListener("pagehide", removePlayerFromLobby);
+    return () => {
+      window.removeEventListener("pagehide", removePlayerFromLobby);
+    };
+  }, [lobbyId, currentPlayerId]);
 
   useEffect(() => {
     if (phase !== "voting") {
