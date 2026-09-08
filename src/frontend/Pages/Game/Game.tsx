@@ -3,7 +3,6 @@ import { db } from "../../../backend/Firebase/FirebaseConfig";
 import {
   arrayUnion,
   collection,
-  deleteDoc,
   doc,
   getDocs,
   getDoc,
@@ -16,6 +15,7 @@ import "./Game.css";
 
 const TOTAL_ROUNDS = 20;
 const VOTING_DURATION = 30000;
+const STALE_PLAYER_TIMEOUT = 60 * 1000;
 
 function Game() {
   const { lobbyId } = useParams<{ lobbyId: string }>();
@@ -85,6 +85,30 @@ function Game() {
   }, [lobbyId]);
 
   useEffect(() => {
+    const updatePresence = async () => {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const lobbySnap = await transaction.get(lobbyRef);
+          if (!lobbySnap.exists()) return;
+
+          const playersInLobby = lobbySnap.data().players || [];
+          const updatedPlayers = playersInLobby.map((player: { id: string; lastSeen?: number }) =>
+            player.id === currentPlayerId ? { ...player, lastSeen: Date.now() } : player
+          );
+
+          transaction.update(lobbyRef, { players: updatedPlayers });
+        });
+      } catch (error) {
+        console.error("[Game Presence] Failed to update last seen:", error);
+      }
+    };
+
+    updatePresence();
+    const interval = window.setInterval(updatePresence, 5000);
+    return () => window.clearInterval(interval);
+  }, [lobbyId, currentPlayerId]);
+
+  useEffect(() => {
     const removePlayerFromLobby = async () => {
       try {
         await runTransaction(db, async (transaction) => {
@@ -121,11 +145,26 @@ function Game() {
         const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
 
         for (const lobby of lobbiesSnapshot.docs) {
-          const playersInLobby = lobby.data().players || [];
-          if (Array.isArray(playersInLobby) && playersInLobby.length === 0) {
-            await deleteDoc(doc(db, "lobbies", lobby.id));
-            console.log(`[Host Cleanup] Deleted empty lobby: ${lobby.id}`);
-          }
+          const lobbyRef = doc(db, "lobbies", lobby.id);
+          await runTransaction(db, async (transaction) => {
+            const currentLobby = await transaction.get(lobbyRef);
+            if (!currentLobby.exists()) return;
+
+            const playersInLobby = currentLobby.data().players || [];
+            const now = Date.now();
+            const activePlayers = playersInLobby.filter(
+              (player: { lastSeen?: number }) =>
+                typeof player.lastSeen === "number" && now - player.lastSeen <= STALE_PLAYER_TIMEOUT
+            );
+
+            if (activePlayers.length === 0) {
+              transaction.delete(lobbyRef);
+              console.log(`[Host Cleanup] Deleted stale lobby: ${lobby.id}`);
+            } else if (activePlayers.length !== playersInLobby.length) {
+              transaction.update(lobbyRef, { players: activePlayers });
+              console.log(`[Host Cleanup] Removed stale players: ${lobby.id}`);
+            }
+          });
         }
       } catch (error) {
         console.error("[Host Cleanup] Failed to clean empty lobbies:", error);
@@ -133,7 +172,7 @@ function Game() {
     };
 
     cleanupEmptyLobbies();
-    const interval = window.setInterval(cleanupEmptyLobbies, 15 * 60 * 1000);
+    const interval = window.setInterval(cleanupEmptyLobbies, 60 * 1000);
     return () => window.clearInterval(interval);
   }, [playerName, hostId]);
 

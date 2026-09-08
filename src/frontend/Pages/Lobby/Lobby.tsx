@@ -8,7 +8,6 @@ import {
   updateDoc,
   getDoc,
   onSnapshot,
-  deleteDoc,
   getDocs,
   runTransaction,
 } from "firebase/firestore";
@@ -16,6 +15,7 @@ import { NaughtyQuestions } from "../../../backend/data/Questions/Questions";
 import "./Lobby.css";
 
 const VOTING_DURATION = 30000;
+const STALE_PLAYER_TIMEOUT = 60 * 1000;
 
 function Lobby() {
   const [players, setPlayers] = useState<
@@ -197,13 +197,26 @@ function Lobby() {
       const lobbiesSnapshot = await getDocs(collection(db, "lobbies"));
 
       for (const lobby of lobbiesSnapshot.docs) {
-        const data = lobby.data();
-        const players = data.players || [];
+        const lobbyRef = doc(db, "lobbies", lobby.id);
+        await runTransaction(db, async (transaction) => {
+          const currentLobby = await transaction.get(lobbyRef);
+          if (!currentLobby.exists()) return;
 
-        if (Array.isArray(players) && players.length === 0) {
-          await deleteDoc(doc(db, "lobbies", lobby.id));
-          console.log(`🧹 Deleted empty lobby: ${lobby.id}`);
-        }
+          const players = currentLobby.data().players || [];
+          const now = Date.now();
+          const activePlayers = players.filter(
+            (player: { lastSeen?: number }) =>
+              typeof player.lastSeen === "number" && now - player.lastSeen <= STALE_PLAYER_TIMEOUT
+          );
+
+          if (activePlayers.length === 0) {
+            transaction.delete(lobbyRef);
+            console.log(`🧹 Deleted stale lobby: ${lobby.id}`);
+          } else if (activePlayers.length !== players.length) {
+            transaction.update(lobbyRef, { players: activePlayers });
+            console.log(`🧹 Removed stale players from lobby: ${lobby.id}`);
+          }
+        });
       }
     } catch (error) {
       console.error("❌ Error cleaning empty lobbies:", error);
@@ -215,7 +228,7 @@ function Lobby() {
 
     const interval = setInterval(() => {
       cleanupEmptyLobbies();
-    }, 15 * 60 * 1000);
+    }, 60 * 1000);
 
     cleanupEmptyLobbies();
     return () => clearInterval(interval);
