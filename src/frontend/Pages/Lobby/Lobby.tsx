@@ -264,6 +264,21 @@ function Lobby() {
     });
   };
 
+  const handleQuestionSetChange = async (questionSet: QuestionSetKey) => {
+    setSelectedQuestionSet(questionSet);
+
+    if (!lobbyId || !isHost) return;
+
+    try {
+      await updateDoc(doc(db, "lobbies", lobbyId), {
+        questionSet,
+        questions: generateRandomQuestions(questionSet),
+      });
+    } catch (error) {
+      console.error("Error updating question set:", error);
+    }
+  };
+
   return (
     <div className="Container">
       <h1>Lobby</h1>
@@ -295,7 +310,7 @@ function Lobby() {
               <select
                 id="question-set"
                 value={selectedQuestionSet}
-                onChange={(event) => setSelectedQuestionSet(event.target.value as QuestionSetKey)}
+                onChange={(event) => handleQuestionSetChange(event.target.value as QuestionSetKey)}
               >
                 {Object.entries(QUESTION_SETS).map(([key, questionSet]) => (
                   <option key={key} value={key}>
@@ -311,6 +326,21 @@ function Lobby() {
         </div>
       ) : (
         <>
+          <div className="question-set-controls">
+            <label htmlFor="new-lobby-question-set">Choose question set</label>
+            <select
+              id="new-lobby-question-set"
+              value={selectedQuestionSet}
+              onChange={(event) => handleQuestionSetChange(event.target.value as QuestionSetKey)}
+            >
+              {Object.entries(QUESTION_SETS).map(([key, questionSet]) => (
+                <option key={key} value={key}>
+                  {questionSet.label}
+                </option>
+              ))}
+            </select>
+            <p>Choose the set before creating a lobby.</p>
+          </div>
           <button onClick={createLobby}>Create Lobby</button>
           <form
             onSubmit={(e) => {
