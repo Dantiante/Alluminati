@@ -52,6 +52,7 @@ function Game() {
   // Derived player objects for display and images, fallback gracefully
   const playerAObj = findPlayerByName(personA, players) || players[0] || null;
   const playerBObj = findPlayerByName(personB, players) || players[1] || null;
+  const isFinalRound = currentRound === TOTAL_ROUNDS - 1;
 
   useEffect(() => {
     const unsubscribe = onSnapshot(lobbyRef, (docSnap) => {
@@ -394,12 +395,13 @@ function Game() {
 
           {phase === "results" && (
             <div>
-              <h3>Results:</h3>
+              <h3>{isFinalRound ? "Final Results" : "Results"}</h3>
               <p>{playerAObj?.name || "Person A"}: {votes.A.length} vote(s)</p>
               <p>{playerBObj?.name || "Person B"}: {votes.B.length} vote(s)</p>
+              {isFinalRound && <p>The game is complete. The host can return everyone to the lobby.</p>}
               {playerName === hostId && (
                 <button onClick={handleNextRound}>
-                  {currentRound + 1 >= TOTAL_ROUNDS ? "Return to Lobby" : "Next Round"}
+                  {isFinalRound ? "Return to Lobby" : "Next Round"}
                 </button>
               )}
             </div>
